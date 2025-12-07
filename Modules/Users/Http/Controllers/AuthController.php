@@ -3,77 +3,36 @@
 namespace Modules\Users\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use Modules\Users\Http\Requests\LoginRequest;
+use Modules\Users\Services\AuthServiceInterface;
 
 class AuthController extends Controller
 {
-    /**
-     * Tenant Login
-     */
+    protected $auth;
 
-    public function me(Request $request)
+    public function __construct(AuthServiceInterface $auth)
     {
-        return response()->json([
-            'user' => [
-                'id'     => $request->user()->id,
-                'name'   => $request->user()->name,
-                'email'  => $request->user()->email,
-                'roles'  => $request->user()->roles()->pluck('name'),
-            ],
-            'tenant_id' => tenant('id'),
-        ]);
+        $this->auth = $auth;
     }
 
-    public function login(Request $request)
+    public function login(LoginRequest $request)
     {
-        
-        // INPUT validasiya
-        $credentials = $request->validate([
-            'email'    => 'required|email',
-            'password' => 'required',
-        ]);
-
-        // İstifadəçini tapırıq
-        $user = User::where('email', $credentials['email'])->first();
-
-        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
-            return response()->json([
-                'message' => 'Email və ya şifrə yanlışdır'
-            ], 401);
+        try {
+            $response = $this->auth->login($request->validated());
+            return response()->json($response);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], $e->getCode() ?: 400);
         }
-
-        // Köhnə tokenləri silirik (təhlükəsizlik üçün)
-        $user->tokens()->delete();
-
-        // Yeni token yaradırıq
-        $token = $user->createToken('tenant_token')->plainTextToken;
-
-        return response()->json([
-            'message'   => 'Uğurla daxil oldunuz.',
-            'user' => [
-                'id'     => $user->id,
-                'name'   => $user->name,
-                'email'  => $user->email,
-                'roles'  => $user->roles()->pluck('name'),
-            ],
-            'token'     => $token,
-            'tenant_id' => tenant('id'),
-        ]);
     }
 
-
-    /**
-     * Tenant Logout
-     */
     public function logout()
     {
-        auth()->user()->tokens()->delete();
+        $this->auth->logout();
+        return response()->json(['message' => 'Uğurla çıxış etdiniz.']);
+    }
 
-        return response()->json([
-            'message' => 'Uğurla çıxış etdiniz.'
-        ]);
+    public function me()
+    {
+        return response()->json($this->auth->me());
     }
 }
-

@@ -7,7 +7,8 @@ use Illuminate\Support\ServiceProvider;
 use Nwidart\Modules\Traits\PathNamespace;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
-
+use Modules\Users\Services\AuthServiceInterface;
+use Modules\Users\Services\AuthService;
 class UsersServiceProvider extends ServiceProvider
 {
     use PathNamespace;
@@ -36,6 +37,19 @@ class UsersServiceProvider extends ServiceProvider
     {
         $this->app->register(EventServiceProvider::class);
         $this->app->register(RouteServiceProvider::class);
+
+        $this->app->bind(AuthServiceInterface::class, AuthService::class);
+
+        $this->app->bind(
+        \Modules\Users\Repositories\UserRepositoryInterface::class,
+        \Modules\Users\Repositories\UserRepository::class
+        );
+
+        $this->app->bind(
+            \Modules\Users\Services\UserServiceInterface::class,
+            \Modules\Users\Services\UserService::class
+        );
+
     }
 
     /**

@@ -19,7 +19,7 @@ class TenantsController extends Controller
     public function index()
     {
         return response()->json(
-            $this->tenantService->getAllTenants()
+            $this->tenantService->listTenants()
         );
     }
 

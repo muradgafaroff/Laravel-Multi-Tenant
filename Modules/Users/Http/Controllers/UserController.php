@@ -2,145 +2,79 @@
 
 namespace Modules\Users\Http\Controllers;
 
-use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use App\Models\User;
-use Illuminate\Support\Facades\Hash;
+use Modules\Users\Http\Requests\UserStoreRequest;
+use Modules\Users\Http\Requests\UserUpdateRequest;
+use Modules\Users\Services\UserServiceInterface;
 
 class UserController extends Controller
 {
-    /**
-     * Bütün userləri gətir
-     */
+    protected $service;
+
+    public function __construct(UserServiceInterface $service)
+    {
+        $this->service = $service;
+    }
+
+    /** Get all users */
     public function index()
     {
-        return response()->json(User::with('roles')->get(), 200);
+        return response()->json($this->service->getAll());
     }
 
-    /**
-     * Yeni user yarat
-     */
-    public function store(Request $request)
+    /** Create new user */
+    public function store(UserStoreRequest $request)
     {
-        // Yalnız admin user yarada bilər
-        if (!auth()->user()->hasRole('admin')) {
-            return response()->json(['message' => 'Səlahiyyət yoxdur'], 403);
-        }
-
-        $validated = $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users,email',
-            'password' => 'required|min:6',
-            'role'     => 'nullable|string'
-        ]);
-
-        $validated['password'] = Hash::make($validated['password']);
-
-        $user = User::create($validated);
-
-        // Role təyin olunur
-        $role = $validated['role'] ?? 'employee';
-        $user->assignRole($role);
-
-        $token = $user->createToken('API Token')->plainTextToken;
-
-
+        try {
+            $data = $this->service->create($request->validated());
             return response()->json([
-            "message" => "User uğurla yaradıldı.",
-            "user" => $user->load('roles'),
-            "token" => $token
-        ], 201);
+                "message" => "User uğurla yaradıldı.",
+                "data"    => $data
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                "message" => $e->getMessage()
+            ], $e->getCode() ?: 400);
+        }
     }
 
-    /**
-     * Tək user məlumatı
-     */
+    /** Show user */
     public function show($id)
     {
-        return response()->json(User::with('roles')->findOrFail($id), 200);
+        return response()->json($this->service->find($id));
     }
 
-    /**
-     * User yenilə
-     */
-    public function update(Request $request, $id)
+    /** Update user */
+    public function update(UserUpdateRequest $request, $id)
     {
-        $user = User::findOrFail($id);
-        $auth = auth()->user();
+        try {
+            $data = $this->service->update($id, $request->validated());
 
-        $validated = $request->validate([
-            'name'     => 'sometimes|string|max:255',
-            'email'    => 'sometimes|email|unique:users,email,' . $user->id,
-            'password' => 'sometimes|min:6',
-            'role'     => 'nullable|string'
-        ]);
-
-        /** -------------------------------------
-         *  RBAC TƏHLÜKƏSİZLİK QAYDALARI
-         *  ------------------------------------*/
-
-        // 1) Employee və manager admin edə bilməz
-        if (!$auth->hasRole('admin') && !empty($validated['role'])) {
-            return response()->json(['message' => 'Səlahiyyət yoxdur'], 403);
-        }
-
-        // 2) Öz rolunu aşağı sala bilməz (öz admin rolunu manager/employee edə bilməz)
-        if ($user->id == $auth->id && !empty($validated['role']) && $validated['role'] !== 'admin') {
             return response()->json([
-                'message' => 'Öz rolunuzu aşağı sala bilməzsiniz.'
-            ], 403);
+                "message" => "User yeniləndi",
+                "data"    => $data
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                "message" => $e->getMessage()
+            ], $e->getCode() ?: 400);
         }
-
-        // 3) Sistemdə son adminin rolu dəyişdirilə bilməz
-        if (!empty($validated['role']) && $validated['role'] !== 'admin') {
-
-            $adminCount = User::role('admin')->count();
-
-            if ($user->hasRole('admin') && $adminCount == 1) {
-                return response()->json([
-                    'message' => 'Sistemdə ən az 1 admin olmalıdır.'
-                ], 403);
-            }
-        }
-
-        // Parol yenilənirsə hash edirik
-        if (!empty($validated['password'])) {
-            $validated['password'] = Hash::make($validated['password']);
-        }
-
-        // User məlumatı yenilənir
-        $user->update($validated);
-
-        // Rol göndərilibsə dəyişdiririk
-        if (!empty($validated['role'])) {
-            $user->syncRoles([$validated['role']]);
-        }
-
-        return response()->json($user->load('roles'), 200);
     }
 
-    /**
-     * User sil
-     */
+    /** Delete user */
     public function destroy($id)
     {
-        $user = User::findOrFail($id);
-        $auth = auth()->user();
+        try {
+            $this->service->delete($id);
 
-        // Admin olmayan user silə bilməz
-        if (!$auth->hasRole('admin')) {
-            return response()->json(['message' => 'Səlahiyyət yoxdur'], 403);
-        }
+            return response()->json(["message" => "User silindi"]);
 
-        // Son admin silinə bilməz
-        if ($user->hasRole('admin') && User::role('admin')->count() == 1) {
+        } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Sistemdə ən az 1 admin olmalıdır.'
-            ], 403);
+                "message" => $e->getMessage()
+            ], $e->getCode() ?: 400);
         }
-
-        $user->delete();
-
-        return response()->json(['message' => 'User silindi'], 200);
     }
 }

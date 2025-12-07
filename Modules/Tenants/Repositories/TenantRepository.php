@@ -27,9 +27,9 @@ class TenantRepository implements TenantRepositoryInterface
     public function createRoles()
     {
         DB::table('roles')->insert([
-            ['name' => 'admin'],
-            ['name' => 'manager'],
-            ['name' => 'employee'],
+            ['name' => 'admin', 'guard_name' => 'sanctum'],
+            ['name' => 'manager', 'guard_name' => 'sanctum'],
+            ['name' => 'employee', 'guard_name' => 'sanctum'],
         ]);
     }
 
