@@ -37,6 +37,18 @@ class TenantsProvider extends ServiceProvider
         $this->app->register(EventServiceProvider::class);
         $this->app->register(RouteServiceProvider::class);
         $this->app->register(TenancyServiceProvider::class);
+
+         $this->app->bind(
+        \Modules\Tenants\Repositories\TenantRepositoryInterface::class,
+        \Modules\Tenants\Repositories\TenantRepository::class
+        );
+
+        $this->app->bind(
+        \Modules\Tenants\Services\TenantServiceInterface::class,
+        \Modules\Tenants\Services\TenantService::class
+        );
+
+
     }
 
     /**

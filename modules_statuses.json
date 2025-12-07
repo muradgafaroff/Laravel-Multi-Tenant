@@ -1,5 +1,6 @@
 {
     "Tenants": true,
     "Users": true,
-    "Tasks": true
+    "Tasks": true,
+    "TenantRepository": true
 }
