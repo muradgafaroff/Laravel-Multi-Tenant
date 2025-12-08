@@ -2,29 +2,42 @@
 
 namespace Modules\Tasks\Http\Controllers;
 
-use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use App\Models\Comment;
+use Modules\Tasks\Http\Requests\CommentStoreRequest;
+use Modules\Tasks\Services\CommentService;
 
 class CommentController extends Controller
 {
-    // Task-a comment əlavə etmək
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'task_id' => 'required|exists:tasks,id',
-            'content' => 'required|string',
-        ]);
+    protected $service;
 
-        $comment = Comment::create([
-            'task_id' => $validated['task_id'],
-            'user_id' => auth()->id(), // Şərhi göndərən istifadəçi
-            'content' => $validated['content'],
-        ]);
+    public function __construct(CommentService $service)
+    {
+        $this->service = $service;
+    }
+
+    public function index($taskId)
+    {
+        return response()->json(
+            $this->service->getByTask($taskId)
+        );
+    }
+
+    public function store(CommentStoreRequest $request, $taskId)
+    {
+        $comment = $this->service->store($taskId, $request->content);
 
         return response()->json([
             'message' => 'Şərh əlavə edildi',
             'comment' => $comment
         ], 201);
+    }
+
+    public function destroy($id)
+    {
+        $this->service->delete($id);
+
+        return response()->json([
+            'message' => 'Şərh silindi'
+        ], 200);
     }
 }

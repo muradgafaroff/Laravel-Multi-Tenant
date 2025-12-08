@@ -13,6 +13,6 @@ class Tenant extends BaseTenant implements TenantWithDatabase
 
      protected $fillable = [
         'id', // tenant id (string)
-        'data' // json veri alanı
+        'data' // json 
     ];
 }

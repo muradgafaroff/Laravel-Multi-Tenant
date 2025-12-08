@@ -39,6 +39,35 @@ class TasksServiceProvider extends ServiceProvider
     {
         $this->app->register(EventServiceProvider::class);
         $this->app->register(RouteServiceProvider::class);
+
+
+       
+        $this->app->bind(
+            \Modules\Tasks\Repositories\TaskRepositoryInterface::class,
+            \Modules\Tasks\Repositories\TaskRepository::class
+        );
+
+      
+        $this->app->bind(
+            \Modules\Tasks\Services\TaskServiceInterface::class,
+            \Modules\Tasks\Services\TaskService::class
+        );
+
+
+        $this->app->bind(
+            \Modules\Tasks\Repositories\CommentRepositoryInterface::class,
+            \Modules\Tasks\Repositories\CommentRepository::class
+        );
+
+
+         $this->app->bind(
+            \Modules\Tasks\Services\CommentService::class
+          
+        );
+
+
+        
+
     }
 
     /**

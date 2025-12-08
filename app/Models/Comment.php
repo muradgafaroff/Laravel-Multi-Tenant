@@ -12,13 +12,13 @@ class Comment extends Model
         'content'
     ];
 
-    // Şərhin aid olduğu tapşırıq
+    
     public function task()
     {
         return $this->belongsTo(Task::class);
     }
 
-    // Şərhi yazan istifadəçi
+   
     public function user()
     {
         return $this->belongsTo(User::class);
