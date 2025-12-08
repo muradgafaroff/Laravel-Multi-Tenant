@@ -42,7 +42,7 @@ class CommentService
     {
         $user = Auth::user();
 
-        if ($user->role !== 'admin') {
+        if (!$user->hasRole('admin')) {
             abort(403, "Yalnız admin şərh silə bilər.");
         }
 

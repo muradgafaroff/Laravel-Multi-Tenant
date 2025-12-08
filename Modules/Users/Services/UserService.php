@@ -64,14 +64,11 @@ class UserService implements UserServiceInterface
             throw new \Exception("Səlahiyyət yoxdur", 403);
         }
 
-        if ($user->id == $auth->id && !empty($data['role']) && $data['role'] !== 'admin') {
-            throw new \Exception("Öz rolunuzu aşağı sala bilməzsiniz.", 403);
-        }
 
-        if (!empty($data['role']) && $data['role'] !== 'admin') {
+        if (!empty($data['role'])) {
             $adminCount = User::role('admin')->count();
 
-            if ($user->hasRole('admin') && $adminCount == 1) {
+            if ($user->hasRole('admin') && $data['role'] !== 'admin' && $adminCount == 1) {
                 throw new \Exception("Sistemdə ən az 1 admin olmalıdır.", 403);
             }
         }
