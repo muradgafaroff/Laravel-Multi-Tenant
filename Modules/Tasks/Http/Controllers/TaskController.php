@@ -1,7 +1,7 @@
 <?php
 
 namespace Modules\Tasks\Http\Controllers;
-
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Modules\Tasks\Http\Requests\TaskStoreRequest;
@@ -97,6 +97,20 @@ class TaskController extends Controller
                 'data' => $task
             ]);
         }
+
+
+        public function statusCount()
+    {
+
+
+        $data = $this->service->getStatusCount();
+
+        return response()->json([
+            'message' => 'Status count loaded successfully',
+            'data' => $data
+        ]);
+    }
+
 
     /** Delete task */
     public function destroy($id)

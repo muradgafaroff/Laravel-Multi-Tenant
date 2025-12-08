@@ -2,5 +2,6 @@
     "Tenants": true,
     "Users": true,
     "Tasks": true,
-    "TenantRepository": true
+    "TenantRepository": true,
+    "Reports": true
 }

@@ -2,154 +2,118 @@
 
 namespace Modules\Tasks\Services;
 
-use Modules\Tasks\Repositories\TaskRepositoryInterface;
+use Illuminate\Support\Facades\Cache;
+use App\Models\Task;
 use Illuminate\Support\Facades\Auth;
-use App\Models\User;
+use Illuminate\Support\Facades\Log;
 
 class TaskService implements TaskServiceInterface
 {
-    protected $repo;
-
-    public function __construct(TaskRepositoryInterface $repo)
-    {
-        $this->repo = $repo;
-    }
-
     public function getAll()
     {
-        $user = Auth::user();
+        //  Get the active tenant ID
+        $tenantId = tenant('id');
 
-        if ($user->hasRole('employee')) {
-            return $this->repo->getAll()
-                ->where('assigned_to', $user->id);
-        }
+        //  Cache key specific to this tenant
+        $cacheKey = "tenant:{$tenantId}:tasks";
 
-        return $this->repo->getAll();
+        /*
+             Cache::remember()
+
+            - If the data already exists in Redis → return cached data
+            - If not → fetch from DB and store it in Redis
+            - Cache duration: 60 seconds
+        */
+
+        return Cache::remember($cacheKey, 60, function () {
+            return Task::with('user')->get();
+        });
     }
 
-
-    public function find($id)
+    public function create(array $data)
     {
-        $task = $this->repo->find($id);
-        $user = Auth::user();
+        //  Insert the new task into the database
+        $task = Task::create($data);
 
-        if ($user->hasRole('employee') && $task->assigned_to != $user->id) {
-            abort(403, "Bu task üçün icazən yoxdur.");
-        }
+        // Clear cache so that fresh data is used in the next request
+        $this->clearCache();
 
         return $task;
     }
 
-
-    public function create($data)
+    public function find($id)
     {
-        $user = Auth::user();
-
-        if ($user->hasRole('employee')) {
-            abort(403, "Employee task yarada bilməz.");
-        }
-
-        return $this->repo->create($data);
+        
+        return Task::with('user')->findOrFail($id);
     }
 
-
-    public function update($id, $data)
+    public function update($id, array $data)
     {
-        $task = $this->repo->find($id);
-        $user = Auth::user();
+        $task = Task::findOrFail($id);
+        $task->update($data);
 
-        // ADMIN hər şeyi update edə bilər
-        if ($user->hasRole('admin')) {
-            return $this->repo->update($id, $data);
-        }
+        // Refresh cache
+        $this->clearCache();
 
-        // MANAGER adminə aid taskı update edə bilməz
-        if ($user->hasRole('manager')) {
-
-            $assignedUser = User::find($task->assigned_to);
-
-            if ($assignedUser && $assignedUser->hasRole('admin')) {
-                abort(403, "Manager adminin taskını dəyişə bilməz.");
-            }
-
-            return $this->repo->update($id, $data);
-        }
-
-        // EMPLOYEE yalnız öz taskını update edə bilər
-        if ($user->hasRole('employee')) {
-
-            if ($task->assigned_to != $user->id) {
-                abort(403, "Employee yalnız öz taskını dəyişə bilər.");
-            }
-
-            return $this->repo->update($id, $data);
-        }
-
-        abort(403);
+        return $task;
     }
 
-
-    public function updateStatus($id, $newStatus)
+    public function updateStatus($id, $status)
     {
-        $task = $this->repo->find($id);
-        $user = Auth::user();
+        $task = Task::findOrFail($id);
+        $task->status = $status;
+        $task->save();
 
-        // Employee yalnız öz taskının statusunu dəyişə bilər
-        if ($user->hasRole('employee') && $task->assigned_to !== $user->id) {
-            abort(403, "Bu task sizə aid deyil.");
-        }
-
-        $oldStatus = $task->status;
-
-        if ($oldStatus === 'completed' && $newStatus !== 'completed') {
-            abort(422, "Completed task geri qaytarıla bilməz.");
-        }
-
-        if ($oldStatus === 'pending' && $newStatus === 'completed') {
-            abort(422, "Pending → Completed keçidi qadağandır.");
-        }
-
-        return $this->repo->update($id, [
-            'status' => $newStatus
-        ]);
+        $this->clearCache();
+        return $task;
     }
 
-
-    public function assign($id, $assignedTo)
+    public function assign($id, $userId)
     {
-        $task = $this->repo->find($id);
-        $user = Auth::user();
-        $targetUser = User::find($assignedTo);
+        $task = Task::findOrFail($id);
+        $task->assigned_to = $userId;
+        $task->save();
 
-        if (!$targetUser) {
-            abort(404, "User tapılmadı.");
-        }
-
-        // Employee heç kimi assign edə bilməz
-        if ($user->hasRole('employee')) {
-            abort(403, "Employee assign edə bilməz.");
-        }
-
-        // Manager adminə task assign edə bilməz
-        if ($user->hasRole('manager') && $targetUser->hasRole('admin')) {
-            abort(403, "Manager taskı adminə assign edə bilməz.");
-        }
-
-        return $this->repo->update($id, [
-            'assigned_to' => $assignedTo
-        ]);
+        $this->clearCache();
+        return $task;
     }
-
 
     public function delete($id)
     {
-        $user = Auth::user();
+        Task::findOrFail($id)->delete();
 
-        // Yalnız admin silə bilər
-        if (!$user->hasRole('admin')) {
-            abort(403, "Yalnız admin task silə bilər.");
-        }
+        $this->clearCache();
+    }
 
-        return $this->repo->delete($id);
+    public function getStatusCount()
+    {
+        $tenantId = tenant('id');
+        $cacheKey = "tenant:{$tenantId}:task_status_count";
+        
+$value = Cache::get($cacheKey);
+    $ttl = Cache::getRedis()->ttl($cacheKey);
+
+    \Log::info('Redis check:', [
+        'value' => $value,
+        'ttl'   => $ttl
+    ]);
+
+        return Cache::remember($cacheKey, 10, function () {
+            return [
+                'pending' => Task::where('status', 'pending')->count(),
+                'in-progress' => Task::where('status', 'in-progress')->count(),
+                'completed' => Task::where('status', 'completed')->count(),
+            ];
+        });
+    }
+
+
+    // Clear all cache entries related to this tenant 
+    private function clearCache()
+    {
+        $tenantId = tenant('id');
+
+        Cache::forget("tenant:{$tenantId}:tasks");
+        Cache::forget("tenant:{$tenantId}:task_status_count");
     }
 }
