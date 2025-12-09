@@ -11,6 +11,13 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+
+    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
+    (new \App\Console\ScheduleTasks())($schedule);
+    
+     })
+
+
     ->withMiddleware(function (Middleware $middleware): void {
 
        $middleware->alias([

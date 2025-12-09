@@ -89,14 +89,6 @@ class TaskService implements TaskServiceInterface
     {
         $tenantId = tenant('id');
         $cacheKey = "tenant:{$tenantId}:task_status_count";
-        
-$value = Cache::get($cacheKey);
-    $ttl = Cache::getRedis()->ttl($cacheKey);
-
-    \Log::info('Redis check:', [
-        'value' => $value,
-        'ttl'   => $ttl
-    ]);
 
         return Cache::remember($cacheKey, 10, function () {
             return [

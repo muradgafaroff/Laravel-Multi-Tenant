@@ -3,5 +3,6 @@
     "Users": true,
     "Tasks": true,
     "TenantRepository": true,
-    "Reports": true
+    "Reports": true,
+    "Notifications": true
 }

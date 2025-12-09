@@ -14,6 +14,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->foreignId('assigned_to')->nullable()->constrained('users')->onDelete('set null');
             $table->enum('status', ['pending', 'in-progress', 'completed'])->default('pending');
+            $table->boolean('archived')->default(false)->index();
             $table->timestamps();
         });
     }
